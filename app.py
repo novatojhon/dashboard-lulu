@@ -2,14 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. CONFIGURACIÓN E IDENTIDAD VISUAL (Colores basados en el logo)
+# 1. CONFIGURACIÓN E IDENTIDAD VISUAL (Mantenida)
 st.set_page_config(page_title="Maestro Lulu Dashboard", layout="wide", page_icon="👗")
 
 st.markdown("""
     <style>
-    /* Estilo para las métricas con los colores del logo */
-    [data-testid="stMetricValue"] { font-size: 1.8rem; color: #f2a7b5; } /* Rosa del logo */
-    [data-testid="stMetricLabel"] { color: #88d4b3; font-weight: bold; } /* Verde del logo */
+    [data-testid="stMetricValue"] { font-size: 1.8rem; color: #f2a7b5; } 
+    [data-testid="stMetricLabel"] { color: #88d4b3; font-weight: bold; }
     .main { background-color: #ffffff; }
     hr { border-top: 2px solid #f2a7b5; }
     </style>
@@ -21,11 +20,13 @@ def formato_moneda(valor):
     except:
         return valor
 
-# --- ENCABEZADO CON TU LOGO ---
+# --- ENCABEZADO CON LOGO ---
 col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
-    # Usamos el logo cargado
-    st.image("lulus6.png", width=120) 
+    try:
+        st.image("lulus6.png", width=120) 
+    except:
+        st.text("LULUS LOGO")
 with col_titulo:
     st.title("LULUS | Business Intelligence")
     st.write("Panel de Control: Clothing for Little Ones")
@@ -38,7 +39,7 @@ url_inv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&
 url_ventas = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=704711518"
 
 try:
-    # 3. PROCESAMIENTO DE INVENTARIO
+    # 3. PROCESAMIENTO DE INVENTARIO (Lógica Intacta)
     df_inv = pd.read_csv(url_inv).dropna(subset=['Prenda'])
     df_inv['Stock Actual'] = pd.to_numeric(df_inv['Stock Actual'], errors='coerce').fillna(0).astype(int)
     df_inv['Stock Inicial'] = pd.to_numeric(df_inv['Stock Inicial'], errors='coerce').fillna(0).astype(int)
@@ -56,5 +57,65 @@ try:
 
     st.markdown("###")
 
-    # 5. SECCIÓN SUPER
-    
+    # 5. SECCIÓN SUPERIOR: INVENTARIO | LO MÁS VENDIDO
+    col_izq, col_der = st.columns([1.2, 0.8], gap="large")
+
+    with col_izq:
+        st.subheader("📦 Control de Inventario")
+        busqueda = st.text_input("🔍 Buscar prenda...", key="search_bar")
+        df_f = df_inv.copy()
+        if busqueda:
+            df_f = df_f[df_f['Prenda'].str.contains(busqueda, case=False)]
+        
+        def color_stock(val):
+            if val == 0: return 'background-color: #fce4e4; color: #cc0000; font-weight: bold;'
+            elif val <= 5: return 'background-color: #fff9e6; color: #997a00; font-weight: bold;'
+            else: return 'background-color: #e6f9f0; color: #006633; font-weight: bold;'
+
+        view_inv = df_f[['Prenda', 'Stock Inicial', 'Stock Actual', 'Precio Venta']].copy()
+        view_inv['Precio Venta'] = df_f['Precio_Num'].apply(formato_moneda)
+        st.dataframe(view_inv.style.applymap(color_stock, subset=['Stock Actual']),
+                     use_container_width=True, hide_index=True, height=380)
+
+    with col_der:
+        st.subheader("🔥 Top Ventas (Unidades)")
+        df_top = df_inv[df_inv['Vendidos'] > 0].sort_values('Vendidos', ascending=True)
+        if not df_top.empty:
+            fig_bar = px.bar(df_top, x='Vendidos', y='Prenda', orientation='h',
+                             color_discrete_sequence=['#88d4b3'], text_auto='.0f')
+            fig_bar.update_layout(showlegend=False, xaxis_title="", yaxis_title="", 
+                                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+    st.divider()
+
+    # 6. SECCIÓN INFERIOR: VENTAS POR DÍA (Lógica de limpieza corregida)
+    st.subheader("📅 Tendencia de Ventas Diarias")
+    try:
+        df_v = pd.read_csv(url_ventas).dropna(subset=['Fecha', 'Total'])
+        df_v['Total_Num'] = pd.to_numeric(
+            df_v['Total'].astype(str)
+            .str.replace('$', '', regex=False)
+            .str.replace('.', '', regex=False)
+            .str.replace(',', '.', regex=False)
+            .str.strip(), 
+            errors='coerce'
+        ).fillna(0)
+        
+        df_diario = df_v.groupby('Fecha')['Total_Num'].sum().reset_index()
+        
+        fig_trend = px.bar(df_diario, x='Fecha', y='Total_Num', 
+                           color_discrete_sequence=['#f2a7b5'], text_auto=True)
+        fig_trend.update_layout(xaxis_title="", yaxis_title="Monto ($)", height=400,
+                               paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig_trend, use_container_width=True)
+
+        st.markdown("**Detalle de Ventas**")
+        st.dataframe(df_v[['Fecha', 'Nombre del Producto', 'Cantidad Vendida', 'Total']], 
+                     use_container_width=True, hide_index=True)
+
+    except Exception as e:
+        st.warning(f"Error en datos de ventas: {e}")
+
+except Exception as e:
+    st.error(f"Error de conexión general: {e}")
