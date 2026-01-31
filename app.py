@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. Configuración Inicial (Mantenida)
-st.set_page_config(page_title="Maestro Lulu Master Dashboard", layout="wide", page_icon="👗")
+# 1. Configuración de la página (Mantenida intacta)
+st.set_page_config(page_title="Maestro Lulu Dashboard", layout="wide", page_icon="👗")
 
 def formato_moneda(valor):
     try:
@@ -11,16 +11,17 @@ def formato_moneda(valor):
     except:
         return valor
 
-st.title("👗 Maestro Lulu | Business Intelligence")
+st.title("👗 Maestro Lulu | Dashboard de Negocio")
 st.markdown("---")
 
-# IDs de conexión (Verificar que el GID de Ventas Diarias sea 1119747535)
+# 2. Conexión con los IDs correctos según tu enlace
 sheet_id = "1eTx9A4Gdvo17nliZ8J2FHVwa72Vq9lmUJCcGXmXNTGs"
 url_inv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
-url_ventas = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=1119747535"
+# ID actualizado de tu último mensaje: 704711518
+url_ventas = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=704711518"
 
 try:
-    # 2. CARGA DE INVENTARIO (Sin cambios para no dañar lo anterior)
+    # 3. CARGA DE INVENTARIO
     df_inv = pd.read_csv(url_inv).dropna(subset=['Prenda'])
     df_inv['Stock Actual'] = pd.to_numeric(df_inv['Stock Actual'], errors='coerce').fillna(0).astype(int)
     df_inv['Stock Inicial'] = pd.to_numeric(df_inv['Stock Inicial'], errors='coerce').fillna(0).astype(int)
@@ -28,22 +29,22 @@ try:
     df_inv['Valor Inventario'] = df_inv['Stock Actual'] * df_inv['Precio_Num']
     df_inv['Vendidos'] = df_inv['Stock Inicial'] - df_inv['Stock Actual']
 
-    # 3. MÉTRICAS (Las 5 que pediste)
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("💰 Inversiones", formato_moneda(2000.00))
-    c2.metric("🛒 Compras", formato_moneda(1825.17))
-    c3.metric("📈 Total Ventas", formato_moneda(425.00))
-    c4.metric("🏦 Caja", formato_moneda(599.84))
-    c5.metric("📦 Valor Mercancía", formato_moneda(df_inv['Valor Inventario'].sum()))
+    # 4. MÉTRICAS SUPERIORES (Las 5 que pediste)
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("💰 Inversiones", formato_moneda(2000.00))
+    m2.metric("🛒 Compras", formato_moneda(1825.17))
+    m3.metric("📈 Total Ventas", formato_moneda(425.00))
+    m4.metric("🏦 Caja", formato_moneda(599.84))
+    m5.metric("📦 Valor Mercancía", formato_moneda(df_inv['Valor Inventario'].sum()))
 
     st.markdown("###")
 
-    # 4. SECCIÓN SUPERIOR (TABLA | BARRAS LO MÁS VENDIDO)
+    # 5. SECCIÓN SUPERIOR: INVENTARIO (IZQ) | LO MÁS VENDIDO (DER)
     col_izq, col_der = st.columns([1.2, 0.8], gap="large")
 
     with col_izq:
         st.subheader("📦 Control de Inventario")
-        busqueda = st.text_input("🔍 Buscar prenda...", "")
+        busqueda = st.text_input("🔍 Buscar prenda...", key="search_bar")
         df_f = df_inv.copy()
         if busqueda:
             df_f = df_f[df_f['Prenda'].str.contains(busqueda, case=False)]
@@ -69,33 +70,26 @@ try:
 
     st.divider()
 
-    # 5. SECCIÓN INFERIOR: TENDENCIA DE VENTAS POR DÍA (CORREGIDA)
-    st.subheader("📅 Tendencia de Ventas por Día")
+    # 6. SECCIÓN INFERIOR: VENTAS POR DÍA (NUEVA GRÁFICA)
+    st.subheader("📅 Total de Ventas por Día")
     try:
-        # Forzamos la descarga para evitar el error 400
-        df_v = pd.read_csv(url_ventas).dropna(subset=['Fecha'])
-        
-        # Limpieza robusta del campo Total
+        df_v = pd.read_csv(url_ventas).dropna(subset=['Fecha', 'Total'])
+        # Limpiar el total para que sea numérico
         df_v['Total_Num'] = pd.to_numeric(df_v['Total'].astype(str).replace('[\$,]', '', regex=True).replace('\.', '', regex=True).replace(',', '.', regex=True), errors='coerce').fillna(0)
         
-        # Agrupamos por fecha
+        # Agrupar por fecha para la gráfica
         df_diario = df_v.groupby('Fecha')['Total_Num'].sum().reset_index()
         
-        # Gráfica de tendencia
         fig_trend = px.bar(df_diario, x='Fecha', y='Total_Num', 
-                           color_discrete_sequence=['#1f77b4'],
-                           text_auto=True, title="Ventas Totales por Día ($)")
-        
-        fig_trend.update_layout(xaxis_title="Día", yaxis_title="Monto Vendido", height=400)
+                           color_discrete_sequence=['#1f77b4'], text_auto=True)
+        fig_trend.update_layout(xaxis_title="Día", yaxis_title="Dinero Vendido ($)", height=400)
         st.plotly_chart(fig_trend, use_container_width=True)
-        
-        # Detalle de la tabla de ventas
-        st.markdown("**Registro Detallado de Ventas**")
-        df_v_show = df_v[['Fecha', 'Nombre del Producto', 'Cantidad Vendida', 'Total']].copy()
-        st.dataframe(df_v_show, use_container_width=True, hide_index=True)
+
+        st.markdown("**Detalle de Ventas Diarias**")
+        st.dataframe(df_v[['Fecha', 'Nombre del Producto', 'Cantidad Vendida', 'Total']], use_container_width=True, hide_index=True)
 
     except Exception as e:
-        st.warning(f"Aviso: Asegúrate de que la pestaña 'Ventas Diarias' tenga datos válidos. Error: {e}")
+        st.warning(f"Error al cargar la gráfica de ventas: {e}")
 
 except Exception as e:
-    st.error(f"Error de conexión general: {e}")
+    st.error(f"Error general de conexión: {e}")
