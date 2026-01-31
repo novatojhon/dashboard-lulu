@@ -5,11 +5,25 @@ import plotly.express as px
 # 1. CONFIGURACIÓN E IDENTIDAD VISUAL
 st.set_page_config(page_title="Lulus Dashboard", layout="wide", page_icon="👗")
 
+# Estilos CSS para el Dashboard y Encabezados de Tablas
 st.markdown("""
     <style>
+    /* Colores del logo para métricas */
     [data-testid="stMetricValue"] { font-size: 1.8rem; color: #f2a7b5; } 
     [data-testid="stMetricLabel"] { color: #88d4b3; font-weight: bold; }
     hr { border-top: 2px solid #f2a7b5; }
+    
+    /* Color Rosa en los encabezados de las tablas */
+    thead tr th {
+        background-color: #f2a7b5 !important;
+        color: white !important;
+    }
+    
+    /* Bordes suaves para las tablas */
+    .stDataFrame {
+        border: 1px solid #f2a7b5;
+        border-radius: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -39,10 +53,9 @@ url_inv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&
 url_ventas = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=704711518"
 
 try:
-    # 3. PROCESAMIENTO INVENTARIO (CORREGIDO PARA DECIMALES)
+    # 3. PROCESAMIENTO INVENTARIO
     df_inv = pd.read_csv(url_inv).dropna(subset=['Prenda'])
     
-    # Limpieza corregida: reemplaza coma por punto y luego convierte a número
     def limpiar_precio(serie):
         return pd.to_numeric(serie.astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).str.strip(), errors='coerce').fillna(0)
 
@@ -88,7 +101,6 @@ try:
             else: return 'background-color: #e6f9f0; color: #006633; font-weight: bold;'
 
         view_inv = df_f[['Prenda', 'Stock Inicial', 'Stock Actual', 'Precio Venta']].copy()
-        # Muestra el precio tal cual viene del Excel para evitar errores visuales
         st.dataframe(view_inv.style.applymap(color_stock, subset=['Stock Actual']),
                      use_container_width=True, hide_index=True, height=380)
 
@@ -103,7 +115,7 @@ try:
 
     st.divider()
 
-    # 6. GRÁFICA DE VENTAS DIARIAS (CORREGIDA)
+    # 6. GRÁFICA DE VENTAS DIARIAS
     st.subheader("📅 Tendencia de Ventas Diarias")
     try:
         df_v = pd.read_csv(url_ventas).dropna(subset=['Fecha', 'Total'])
