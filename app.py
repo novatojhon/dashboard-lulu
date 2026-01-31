@@ -5,9 +5,10 @@ import plotly.express as px
 # 1. CONFIGURACIÓN E IDENTIDAD VISUAL
 st.set_page_config(page_title="Lulus Dashboard", layout="wide", page_icon="👗")
 
-# CSS para sombreado de tarjetas y encabezados rosas (Sin errores de comillas)
+# CSS para sombreado de tarjetas y TODAS las tablas con encabezado rosa
 st.markdown("""
     <style>
+    /* Efecto de elevación para métricas */
     [data-testid="stMetric"] {
         background-color: #ffffff;
         padding: 15px;
@@ -17,10 +18,20 @@ st.markdown("""
     }
     [data-testid="stMetricValue"] { font-size: 1.8rem; color: #f2a7b5; } 
     [data-testid="stMetricLabel"] { color: #88d4b3; font-weight: bold; }
-    thead tr th {
+    
+    /* Estilo para los encabezados de TODAS las tablas del sistema */
+    .stDataFrame thead tr th {
         background-color: #f2a7b5 !important;
         color: white !important;
+        font-weight: bold !important;
     }
+    
+    /* Bordes redondeados para las tablas */
+    .stDataFrame {
+        border: 1px solid #f2a7b5;
+        border-radius: 10px;
+    }
+    
     hr { border-top: 2px solid #f2a7b5; }
     </style>
     """, unsafe_allow_html=True)
@@ -73,7 +84,7 @@ try:
         else:
             st.success("Inventario al día")
 
-    # 4. MÉTRICAS CON NOMBRES ELEGANTES
+    # 4. MÉTRICAS SUPERIORES
     m1, m2, m3, m4, m5 = st.columns(5)
     with m1: st.metric("💰 Inversión Operativa", formato_moneda(2000.00))
     with m2: st.metric("🛒 Suministros", formato_moneda(1825.17))
@@ -83,7 +94,7 @@ try:
 
     st.markdown("###")
 
-    # 5. INVENTARIO Y TOP VENTAS
+    # 5. TABLA DE DISPONIBILIDAD Y GRÁFICA DE FAVORITOS
     c1, c2 = st.columns([1.2, 0.8], gap="large")
 
     with c1:
@@ -93,14 +104,10 @@ try:
         if busqueda:
             df_f = df_f[df_f['Prenda'].str.contains(busqueda, case=False)]
         
-        # Función de color corregida (Cerrando bien los strings)
         def color_stock(val):
-            if val == 0: 
-                return 'background-color: #fce4e4; color: #cc0000; font-weight: bold;'
-            elif val <= 5: 
-                return 'background-color: #fff9e6; color: #997a00; font-weight: bold;'
-            else: 
-                return 'background-color: #e6f9f0; color: #006633; font-weight: bold;'
+            if val == 0: return 'background-color: #fce4e4; color: #cc0000; font-weight: bold;'
+            elif val <= 5: return 'background-color: #fff9e6; color: #997a00; font-weight: bold;'
+            else: return 'background-color: #e6f9f0; color: #006633; font-weight: bold;'
 
         view_inv = df_f[['Prenda', 'Stock Inicial', 'Stock Actual', 'Precio Venta']].copy()
         st.dataframe(view_inv.style.applymap(color_stock, subset=['Stock Actual']),
@@ -112,27 +119,32 @@ try:
         if not df_top.empty:
             fig_bar = px.bar(df_top, x='Vendidos', y='Prenda', orientation='h',
                              color_discrete_sequence=['#88d4b3'], text_auto='.0f')
-            fig_bar.update_layout(showlegend=False, xaxis_title="", yaxis_title="", margin=dict(t=10, b=10, l=10, r=10))
+            fig_bar.update_layout(showlegend=False, xaxis_title="", yaxis_title="", 
+                                 margin=dict(t=10, b=10, l=10, r=10),
+                                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_bar, use_container_width=True)
 
     st.divider()
 
-    # 6. GRÁFICA DE VENTAS DIARIAS
+    # 6. GRÁFICA DE PULSO DIARIO Y TABLA HISTÓRICA
     st.subheader("📉 Pulso de Ventas Diarias")
     try:
         df_v = pd.read_csv(url_ventas).dropna(subset=['Fecha', 'Total'])
         df_v['Total_Num'] = limpiar_precio(df_v['Total'])
-        df_diario = df_v.groupby('Fecha')['Total_Num'].sum().reset_index()
         
+        df_diario = df_v.groupby('Fecha')['Total_Num'].sum().reset_index()
         fig_trend = px.bar(df_diario, x='Fecha', y='Total_Num', color_discrete_sequence=['#f2a7b5'], text_auto=True)
-        fig_trend.update_layout(xaxis_title="", yaxis_title="Monto Real ($)", height=400)
+        fig_trend.update_layout(xaxis_title="", yaxis_title="Monto Real ($)", height=400,
+                               paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_trend, use_container_width=True)
 
         st.markdown("**Registro Histórico de Transacciones**")
-        st.dataframe(df_v[['Fecha', 'Nombre del Producto', 'Cantidad Vendida', 'Total']], use_container_width=True, hide_index=True)
+        # Aquí la tabla de transacciones también hereda el diseño rosa
+        st.dataframe(df_v[['Fecha', 'Nombre del Producto', 'Cantidad Vendida', 'Total']], 
+                     use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.warning(f"Error en datos de ventas: {e}")
 
 except Exception as e:
-    st.error(f"Error crítico: {e}")
+    st.error(f"Error crítico de conexión: {e}")
