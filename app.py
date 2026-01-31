@@ -10,7 +10,6 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 1.8rem; color: #f2a7b5; } 
     [data-testid="stMetricLabel"] { color: #88d4b3; font-weight: bold; }
     hr { border-top: 2px solid #f2a7b5; }
-    .stAlert { border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -40,11 +39,16 @@ url_inv = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&
 url_ventas = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=704711518"
 
 try:
-    # 3. PROCESAMIENTO INVENTARIO
+    # 3. PROCESAMIENTO INVENTARIO (CORREGIDO PARA DECIMALES)
     df_inv = pd.read_csv(url_inv).dropna(subset=['Prenda'])
+    
+    # Limpieza corregida: reemplaza coma por punto y luego convierte a número
+    def limpiar_precio(serie):
+        return pd.to_numeric(serie.astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).str.strip(), errors='coerce').fillna(0)
+
+    df_inv['Precio_Num'] = limpiar_precio(df_inv['Precio Venta'])
     df_inv['Stock Actual'] = pd.to_numeric(df_inv['Stock Actual'], errors='coerce').fillna(0).astype(int)
     df_inv['Stock Inicial'] = pd.to_numeric(df_inv['Stock Inicial'], errors='coerce').fillna(0).astype(int)
-    df_inv['Precio_Num'] = pd.to_numeric(df_inv['Precio Venta'].astype(str).replace('[\$,]', '', regex=True).replace('\.', '', regex=True).replace(',', '.', regex=True), errors='coerce').fillna(0)
     df_inv['Valor Inventario'] = df_inv['Stock Actual'] * df_inv['Precio_Num']
     df_inv['Vendidos'] = df_inv['Stock Inicial'] - df_inv['Stock Actual']
 
@@ -84,7 +88,7 @@ try:
             else: return 'background-color: #e6f9f0; color: #006633; font-weight: bold;'
 
         view_inv = df_f[['Prenda', 'Stock Inicial', 'Stock Actual', 'Precio Venta']].copy()
-        view_inv['Precio Venta'] = df_f['Precio_Num'].apply(formato_moneda)
+        # Muestra el precio tal cual viene del Excel para evitar errores visuales
         st.dataframe(view_inv.style.applymap(color_stock, subset=['Stock Actual']),
                      use_container_width=True, hide_index=True, height=380)
 
@@ -99,14 +103,11 @@ try:
 
     st.divider()
 
-    # 6. GRÁFICA DE VENTAS DIARIAS
+    # 6. GRÁFICA DE VENTAS DIARIAS (CORREGIDA)
     st.subheader("📅 Tendencia de Ventas Diarias")
     try:
         df_v = pd.read_csv(url_ventas).dropna(subset=['Fecha', 'Total'])
-        df_v['Total_Num'] = pd.to_numeric(
-            df_v['Total'].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).str.strip(), 
-            errors='coerce'
-        ).fillna(0)
+        df_v['Total_Num'] = limpiar_precio(df_v['Total'])
         
         df_diario = df_v.groupby('Fecha')['Total_Num'].sum().reset_index()
         fig_trend = px.bar(df_diario, x='Fecha', y='Total_Num', color_discrete_sequence=['#f2a7b5'], text_auto=True)
@@ -120,4 +121,4 @@ try:
         st.warning(f"Error en datos de ventas: {e}")
 
 except Exception as e:
-    st.error(f"Error crítico: {e}")
+    st.error(f"Error crítico de conexión: {e}")
