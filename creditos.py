@@ -1,25 +1,19 @@
-import streamlit as st
+# Este código genera el JSON que Softr va a leer
 import pandas as pd
+import json
 
-# CONFIGURACIÓN INDEPENDIENTE
-st.set_page_config(page_title="Control de Préstamos Jhon", layout="wide")
+# Tu ID de hoja actual
+SHEET_ID = "1PMwlDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
+url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-# Reemplaza con el link de tu nueva hoja de Google Sheets
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1PMwlDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8/export?format=csv""
+df = pd.read_csv(url)
 
-def load_data():
-    df = pd.read_csv(SHEET_URL)
-    # Convertimos a número las columnas de tu imagen
-    for col in ['Saldo Capital Pendiente', 'Saldo Interés Pendiente']:
-        df[col] = df[col].replace('[\$,]', '', regex=True).astype(float)
-    return df
+# Limpiamos y sumamos
+df['capital'] = df['Saldo Capital Pendiente'].replace('[\$,]', '', regex=True).astype(float)
+df['interes'] = df['Saldo Interés Pendiente'].replace('[\$,]', '', regex=True).astype(float)
+df['total'] = df['capital'] + df['interes']
 
-df = load_data()
-ultimo = df.iloc[-1]
-
-st.title("💰 Estado de Cuenta: Cliente")
-st.metric("TOTAL DEUDA", f"${ultimo['Saldo Capital Pendiente'] + ultimo['Saldo Interés Pendiente']:,.2f}")
-
-# Esto mostrará la tabla limpia que vimos en tu captura
-st.subheader("Historial de movimientos")
-st.table(df[['Fecha', 'Descripción', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente', 'Saldo Interés Pendiente']])
+# Creamos el JSON final para Softr
+resultado = df.to_dict(orient='records')
+with open('data.json', 'w') as f:
+    json.dump(resultado, f)
