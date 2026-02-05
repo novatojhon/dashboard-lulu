@@ -5,7 +5,7 @@ import pandas as pd
 st.set_page_config(page_title="Control de Préstamos Jhon", layout="wide")
 
 # Reemplaza con el link de tu nueva hoja de Google Sheets
-SHEET_URL = "https://docs.google.com/spreadsheets/d/TU_ID_AQUI/export?format=csv"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1PMwlDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8/export?format=csv""
 
 def load_data():
     df = pd.read_csv(SHEET_URL)
