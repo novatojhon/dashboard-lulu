@@ -1,40 +1,19 @@
 import streamlit as st
 import pandas as pd
 
-# Configuración compacta
 st.set_page_config(page_title="Estado de Cuenta", layout="centered")
 
-# CSS para vista móvil limpia
+# CSS para que se vea como una App de Finanzas
 st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Tarjetas de métricas */
+    #MainMenu, footer, header {visibility: hidden;}
     div[data-testid="stMetric"] {
         background-color: #111111;
         border: 1px solid #30363d;
-        border-radius: 15px;
-        padding: 15px;
-        margin-bottom: 10px;
-        text-align: center;
+        border-radius: 12px;
+        padding: 10px;
     }
-    [data-testid="stMetricValue"] {
-        font-size: 32px !important;
-        color: #00ffcc !important;
-    }
-    [data-testid="stMetricLabel"] {
-        font-size: 14px !important;
-        color: #8b949e !important;
-    }
-    .cliente-label {
-        color: #8b949e;
-        font-size: 18px;
-        text-align: center;
-        margin-top: -20px;
-        margin-bottom: 20px;
-    }
+    [data-testid="stMetricValue"] { font-size: 26px !important; color: #00ffcc !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -42,36 +21,49 @@ SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=77813725"
 
 try:
-    # Cargar datos
-    # Leemos la fila 1 para el cliente y el resto para la tabla
+    # Leer nombre del cliente (C1)
     df_raw = pd.read_csv(url, header=None)
-    nombre_cliente = df_raw.iloc[0, 2] # Celda C1
-    
-    df = pd.read_csv(url, skiprows=2).fillna("")
+    nombre_cliente = df_raw.iloc[0, 2] 
+
+    # Leer tabla principal (saltando 2 filas)
+    df = pd.read_csv(url, skiprows=2).fillna(0)
     df.columns = df.columns.str.strip()
-    df_datos = df[df['Fecha'] != ""]
     
-    # Extraer los últimos saldos
-    cap_total = df_datos['Saldo Capital Pendiente'].iloc[-1]
-    int_total = df_datos['Saldo Interés Pendiente'].iloc[-1]
-
-    st.markdown("## 🏦 Resumen de Cuenta")
-    st.markdown(f"<div class='cliente-label'>👤 {nombre_cliente}</div>", unsafe_allow_html=True)
+    # Filtrar solo filas con datos
+    df_datos = df[df['Fecha'] != 0]
     
-    # Métricas principales
-    st.metric("CAPITAL PENDIENTE", f"{cap_total}")
-    st.metric("INTERÉS ACUMULADO", f"{int_total}")
+    # Valores de la última fila para las métricas superiores
+    ultima_fila = df_datos.iloc[-1]
 
-    # Estatus destacado
-    st.error("⚠️ ESTATUS: EN RIESGO")
+    st.markdown(f"### 🏦 {nombre_cliente}")
+    
+    # Cuadrícula de métricas (4 campos clave)
+    c1, c2 = st.columns(2)
+    c1.metric("CAPITAL TOTAL", f"{ultima_fila['Saldo Capital Pendiente']}")
+    c2.metric("INTERÉS TOTAL", f"{ultima_fila['Saldo Interés Pendiente']}")
+    
+    c3, c4 = st.columns(2)
+    # Aquí está el campo que faltaba
+    c3.metric("INTERÉS GENERADO", f"{ultima_fila['Interés Generado (20%)']}")
+    c4.metric("ESTATUS", "EN RIESGO")
 
-    # Tabla de movimientos
-    st.write("### 📋 Últimos Movimientos")
+    st.markdown("---")
+    st.write("📊 **Detalle de Movimientos**")
+    
+    # Mostramos la tabla con todas las columnas de tu imagen
+    columnas_visibles = [
+        'Fecha', 
+        'Interés Generado (20%)', 
+        'Abono a Interés', 
+        'Abono a Capital', 
+        'Saldo Capital Pendiente'
+    ]
+    
     st.dataframe(
-        df_datos[['Fecha', 'Descripción', 'Abono a Interés', 'Abono a Capital']].tail(5), 
-        use_container_width=True,
+        df_datos[columnas_visibles], 
+        use_container_width=True, 
         hide_index=True
     )
 
 except Exception as e:
-    st.write("⌛ Sincronizando datos...")
+    st.error("Sincronizando con Google Sheets...")
