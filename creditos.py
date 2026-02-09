@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Configuración básica (Se mantiene igual)
+# 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
+# CSS para ocultar menús y definir el color rojo para el estatus
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -15,8 +16,13 @@ st.markdown("""
     }
     [data-testid="stMetricValue"] { font-size: 26px !important; color: #00ffcc !important; }
     
-    /* Clase especial para poner la métrica en ROJO */
-    .st-emotion-cache-12w0498 { color: #ff4b4b !important; } 
+    /* Estilo para el texto en rojo */
+    .status-rojo {
+        color: #ff4b4b;
+        font-size: 26px;
+        font-weight: bold;
+        margin: 0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -33,28 +39,26 @@ def clean_num(value):
         return 0.0
 
 try:
+    # Leer datos básicos
     df_raw = pd.read_csv(url, header=None, nrows=1)
     nombre_cliente = df_raw.iloc[0, 2]
+    
     df = pd.read_csv(url, skiprows=2)
     df.columns = df.columns.str.strip()
     df_limpio = df.dropna(subset=['Fecha']).copy()
 
-    # Cálculos
+    # --- LÓGICA FINANCIERA (La que ya funcionaba) ---
     total_interes_generado = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
     total_abonos_interes = df_limpio['Abono a Interés'].apply(clean_num).sum()
     interes_pendiente = total_interes_generado - total_abonos_interes
-    ultimo_capital = df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente']
+    
+    # Capital: buscamos la última celda con datos
+    ultima_fila_cap = df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]
+    cap_pend = ultima_fila_cap['Saldo Capital Pendiente']
 
     # --- INTERFAZ ---
     st.markdown(f"### 🏦 {nombre_cliente}")
     
     c1, c2 = st.columns(2)
-    c1.metric("CAPITAL PENDIENTE", f"{ultimo_capital}")
-    c2.metric("INTERÉS ACUMULADO", f"${total_interes_generado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    
-    c3, c4 = st.columns(2)
-    c3.metric("INTERÉS PENDIENTE", f"${interes_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    
-    # ESTATUS EN ROJO usando Markdown con HTML
-    with c4:
-        st.markdown("""
+    c1.metric("CAPITAL PENDIENTE", f"{cap_pend}")
+    c2.metric("INTERÉS ACUMULADO", f"${total_interes_generado:,.2f}".replace
