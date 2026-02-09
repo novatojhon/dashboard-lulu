@@ -28,6 +28,13 @@ st.markdown("""
         font-size: 14px !important;
         color: #8b949e !important;
     }
+    .cliente-label {
+        color: #8b949e;
+        font-size: 18px;
+        text-align: center;
+        margin-top: -20px;
+        margin-bottom: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,6 +43,10 @@ url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=
 
 try:
     # Cargar datos
+    # Leemos la fila 1 para el cliente y el resto para la tabla
+    df_raw = pd.read_csv(url, header=None)
+    nombre_cliente = df_raw.iloc[0, 2] # Celda C1
+    
     df = pd.read_csv(url, skiprows=2).fillna("")
     df.columns = df.columns.str.strip()
     df_datos = df[df['Fecha'] != ""]
@@ -44,16 +55,17 @@ try:
     cap_total = df_datos['Saldo Capital Pendiente'].iloc[-1]
     int_total = df_datos['Saldo Interés Pendiente'].iloc[-1]
 
-    st.markdown("## 🏦 Resumen de Préstamo")
+    st.markdown("## 🏦 Resumen de Cuenta")
+    st.markdown(f"<div class='cliente-label'>👤 {nombre_cliente}</div>", unsafe_allow_html=True)
     
-    # Métricas principales una tras otra
+    # Métricas principales
     st.metric("CAPITAL PENDIENTE", f"{cap_total}")
     st.metric("INTERÉS ACUMULADO", f"{int_total}")
 
     # Estatus destacado
     st.error("⚠️ ESTATUS: EN RIESGO")
 
-    # Tabla de movimientos simplificada
+    # Tabla de movimientos
     st.write("### 📋 Últimos Movimientos")
     st.dataframe(
         df_datos[['Fecha', 'Descripción', 'Abono a Interés', 'Abono a Capital']].tail(5), 
