@@ -2,47 +2,49 @@ import streamlit as st
 import pandas as pd
 
 # Configuración de la App
-st.set_page_config(page_title="Mi Crédito OWS", layout="centered")
+st.set_page_config(page_title="Portal de Crédito OWS", layout="centered")
 
-# Estilo para móvil
+# Estilo personalizado
 st.markdown("""
     <style>
-    [data-testid="stMetricValue"] { font-size: 28px; color: #00FFCC; }
-    .stAlert { border-radius: 20px; }
+    .stMetric { background-color: #1e2130; padding: 15px; border-radius: 15px; }
+    [data-testid="stMetricValue"] { color: #00FFCC; }
     </style>
     """, unsafe_allow_html=True)
 
-# Tu ID de hoja actual (Detectado de tu imagen)
-SHEET_ID = "1PMwlDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
+# URL de tu Google Sheet en formato CSV
+SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 try:
-    df = pd.read_csv(url)
+    # Leer los datos (saltando la primera fila de encabezado personalizado)
+    df = pd.read_csv(url, skiprows=1)
     
-    # Extraer valores clave de tu tabla
-    # Según tu imagen: F6 es Capital, G6 es Interés, E1 es Estatus
-    cliente = "OWS2025"
-    estatus = "EN RIESGO"  # Esto lo podemos dinamizar luego
-    saldo_capital = "$3.000,00"
-    saldo_interes = "$900,00"
+    # Datos del Cliente (Fila 1 de tu Excel)
+    cliente_nombre = "OWS2025" 
+    estatus = "EN RIESGO"
 
-    st.title(f"👋 ¡Hola, {cliente}!")
-    st.write("Aquí tienes el resumen de tu préstamo en tiempo real.")
+    st.title(f"🏦 Bienvenido, {cliente_nombre}")
+    st.write("Estado de tu préstamo en tiempo real")
 
-    # Tarjetas de Impacto
+    # Obtener los últimos valores de la tabla
+    ultimo_capital = df['Saldo Capital Pendiente'].dropna().iloc[-1]
+    ultimo_interes = df['Saldo Interés Pendiente'].dropna().iloc[-1]
+
+    # Mostrar KPIs Impactantes
     col1, col2 = st.columns(2)
-    col1.metric("Saldo Capital", saldo_capital)
-    col2.metric("Interés Pendiente", saldo_interes, delta="+20%", delta_color="inverse")
+    col1.metric("Saldo Capital", ultimo_capital)
+    col2.metric("Interés Pendiente", ultimo_interes)
 
-    # Alerta de Estatus
+    # Mostrar Estatus con color
     if "RIESGO" in estatus:
-        st.error(f"🔴 ESTADO DEL CRÉDITO: {estatus}")
+        st.error(f"⚠️ ESTATUS ACTUAL: {estatus}")
     else:
-        st.success(f"✅ ESTADO DEL CRÉDITO: {estatus}")
+        st.success(f"✅ ESTATUS ACTUAL: {estatus}")
 
-    # Tabla de movimientos
-    st.markdown("### 📊 Historial de Movimientos")
+    # Tabla de Movimientos
+    st.subheader("📝 Historial de Pagos")
     st.dataframe(df.dropna(subset=['Fecha']), use_container_width=True)
 
 except Exception as e:
-    st.error("Conectando con la base de datos...")
+    st.warning("⚠️ Casi listo. Por favor, asegúrate de que el botón 'Compartir' en Google Sheets esté en 'Cualquier persona con el enlace'.")
