@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS Blindado: Títulos amarillos, Valores verde neón
+# CSS: Solo para colores. Títulos amarillos y valores verde neón.
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -14,12 +14,12 @@ st.markdown("""
         border-radius: 12px;
         padding: 10px;
     }
-    /* Títulos en amarillo */
+    /* Títulos de cuadrículas en amarillo */
     [data-testid="stMetricLabel"] {
         color: #ffff00 !important;
         font-weight: bold !important;
     }
-    /* Valores en verde neón */
+    /* Valores numéricos en verde neón */
     [data-testid="stMetricValue"] { 
         font-size: 26px !important; 
         color: #00ffcc !important; 
@@ -32,7 +32,7 @@ SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=77813725"
 
 def clean_num(value):
-    """Limpia los valores de la tabla para hacer cálculos"""
+    """Limpia formatos de moneda para cálculos"""
     if pd.isna(value) or value == "" or value == 0:
         return 0.0
     try:
@@ -42,7 +42,7 @@ def clean_num(value):
         return 0.0
 
 try:
-    # Leer datos
+    # Leer datos del cliente y tabla
     df_raw = pd.read_csv(url, header=None, nrows=1)
     nombre_cliente = df_raw.iloc[0, 2]
     
@@ -51,21 +51,23 @@ try:
     df_limpio = df.dropna(subset=['Fecha']).copy()
 
     # --- LÓGICA DE CÁLCULOS ---
-    # Interés Acumulado: Suma de intereses generados
+    # Interés Acumulado: Suma de todos los intereses generados ($1.200)
     total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
-    # Interés Pendiente: Acumulado menos abonos
+    
+    # Interés Pendiente: Acumulado menos lo que ha pagado ($1.200 - $300 = $900)
     total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
     int_pendiente = total_gen - total_pagado_int
     
     # Capital: Último saldo registrado
     cap_pend = df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente']
 
-    # --- INTERFAZ ---
+    # --- MOSTRAR INTERFAZ ---
     st.markdown(f"### 🏦 {nombre_cliente}")
     
     c1, c2 = st.columns(2)
     c1.metric("CAPITAL PENDIENTE", f"{cap_pend}")
     
+    # Formateo de moneda manual para evitar errores de sistema
     val_acumulado = f"${total_gen:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     c2.metric("INTERÉS ACUMULADO", val_acumulado)
     
@@ -73,18 +75,23 @@ try:
     val_pendiente = f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     c3.metric("INTERÉS PENDIENTE", val_pendiente)
     
-    # Bloque de Estatus en ROJO (Identación verificada línea por línea)
+    # Estatus con color ROJO y título AMARILLO (Indentación corregida)
     with c4:
-        st.markdown(f"""
+        st.markdown("""
             <div style="background-color: #111111; border: 1px solid #ff4b4b; border-radius: 12px; padding: 10px; text-align: center;">
                 <p style="color: #ffff00; font-size: 14px; font-weight: bold; margin: 0;">ESTATUS</p>
                 <p style="color: #ff4b4b; font-size: 26px; font-weight: bold; margin: 0;">EN RIESGO</p>
             </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.write("📊 **Detalle de Movimientos**")
     
-    # Tabla con todas las columnas solicitadas
+    # Tabla con columnas requeridas, incluyendo Descripción
     columnas = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
-    st.dataframe(df_limpio[columnas].fillna("-"),
+    st.dataframe(df_limpio[columnas].fillna("-"), use_container_width=True, hide_index=True)
+
+except Exception as e:
+    st.error("Sincronizando... Refresca la página en unos segundos.")
+  
+  
