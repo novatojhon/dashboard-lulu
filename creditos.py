@@ -1,14 +1,29 @@
 import streamlit as st
 import pandas as pd
 
-# Configuración de la App
-st.set_page_config(page_title="Mi Crédito OWS", page_icon="🏦")
+# Configuración compacta para celular
+st.set_page_config(page_title="Mi Crédito OWS", layout="centered")
 
-# CSS para mejorar el look
+# CSS para forzar la estética de App móvil
 st.markdown("""
     <style>
-    .stMetric { border: 1px solid #4a4a4a; padding: 10px; border-radius: 10px; background-color: #1a1c24; }
-    [data-testid="stMetricValue"] { color: #00ffcc; font-weight: bold; }
+    /* Ocultar menús innecesarios de Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Tarjetas de métricas estilo neón */
+    div[data-testid="stMetric"] {
+        background-color: #111111;
+        border: 2px solid #00ffcc;
+        border-radius: 15px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 24px !important;
+        color: #00ffcc !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -16,40 +31,29 @@ SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=77813725"
 
 try:
-    # Leer datos saltando las 2 filas iniciales
-    df = pd.read_csv(url, skiprows=2)
+    df = pd.read_csv(url, skiprows=2).fillna("")
     df.columns = df.columns.str.strip()
-    
-    # Limpiar la tabla de valores vacíos para que no diga "NaN" o "None"
-    df = df.fillna("")
-
-    st.title("🏦 Resumen de Cuenta")
-    st.info("Cliente: OWS2025")
-
-    # Obtener valores (asegurando que tomamos la última fila con datos)
-    # Filtramos filas donde la fecha no esté vacía
     df_datos = df[df['Fecha'] != ""]
+    
+    # Extraer saldos
     cap_total = df_datos['Saldo Capital Pendiente'].iloc[-1]
     int_total = df_datos['Saldo Interés Pendiente'].iloc[-1]
 
-    # KPIs
-    c1, c2 = st.columns(2)
-    c1.metric("CAPITAL", f"{cap_total}")
-    c2.metric("INTERESES", f"{int_total}")
+    st.markdown("### 🏦 Mi Estado de Cuenta")
+    
+    # Métricas una debajo de otra (mejor para móvil)
+    st.metric("CAPITAL PENDIENTE", f"{cap_total}")
+    st.metric("INTERÉS ACUMULADO", f"{int_total}")
 
-    # Estatus Impactante
-    st.error("⚠️ ESTATUS ACTUAL: EN RIESGO")
+    # Alerta de Estatus
+    st.error("⚠️ ESTATUS: EN RIESGO")
 
-    # Tabla Estilizada
-    st.write("### 📝 Historial de Movimientos")
-    st.dataframe(df_datos[['Fecha', 'Descripción', 'Abono a Interés', 'Abono a Capital']], use_container_width=True)
+    # Tabla con scroll lateral automático
+    st.write("📋 **Últimos Movimientos**")
+    st.dataframe(df_datos[['Fecha', 'Descripción', 'Abono a Capital']].tail(5), use_container_width=True)
 
-    # --- BOTÓN DE CONTACTO DIRECTO ---
-    st.markdown("---")
-    st.markdown("¿Tienes alguna duda sobre tu saldo?")
-    # Reemplaza el número por el tuyo
-    st.link_button("💬 Hablar con Asesor", "https://wa.me/tu_numero_aqui")
+    # Botón flotante simulado
+    st.link_button("💬 SOLICITAR SOPORTE", "https://wa.me/tu_numero", use_container_width=True)
 
-except Exception as e:
-    st.warning("Sincronizando con la base de datos...")
-  
+except:
+    st.write("⌛ Actualizando datos...")
