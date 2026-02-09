@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS para ocultar menús y definir el color rojo para el estatus
+# CSS Blindado: Sin errores de comillas
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -15,13 +15,12 @@ st.markdown("""
         padding: 10px;
     }
     [data-testid="stMetricValue"] { font-size: 26px !important; color: #00ffcc !important; }
-    
-    /* Estilo para el texto en rojo */
-    .status-rojo {
-        color: #ff4b4b;
-        font-size: 26px;
-        font-weight: bold;
-        margin: 0;
+    .status-box {
+        background-color: #111111;
+        border: 1px solid #ff4b4b;
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -31,7 +30,8 @@ SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=77813725"
 
 def clean_num(value):
-    if str(value) == 'nan' or value == "": return 0.0
+    """Convierte moneda de Excel a número real para matemáticas"""
+    if pd.isna(value) or value == "" or value == 0: return 0.0
     try:
         res = str(value).replace('$', '').replace('.', '').replace(',', '.').strip()
         return float(res)
@@ -39,7 +39,7 @@ def clean_num(value):
         return 0.0
 
 try:
-    # Leer datos básicos
+    # Leer Datos
     df_raw = pd.read_csv(url, header=None, nrows=1)
     nombre_cliente = df_raw.iloc[0, 2]
     
@@ -47,18 +47,39 @@ try:
     df.columns = df.columns.str.strip()
     df_limpio = df.dropna(subset=['Fecha']).copy()
 
-    # --- LÓGICA FINANCIERA (La que ya funcionaba) ---
-    total_interes_generado = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
-    total_abonos_interes = df_limpio['Abono a Interés'].apply(clean_num).sum()
-    interes_pendiente = total_interes_generado - total_abonos_interes
+    # --- LÓGICA FINANCIERA SOLICITADA ---
+    # Interés Acumulado: Suma total de lo generado ($600 + $600 = $1.200)
+    total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
     
-    # Capital: buscamos la última celda con datos
-    ultima_fila_cap = df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]
-    cap_pend = ultima_fila_cap['Saldo Capital Pendiente']
+    # Lo que ha pagado de interés ($300)
+    total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
+    
+    # Interés Pendiente: Acumulado menos pagado ($1.200 - $300 = $900)
+    int_pendiente = total_gen - total_pagado_int
+    
+    # Capital: Último dato registrado
+    cap_pend = df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente']
 
-    # --- INTERFAZ ---
+    # --- VISTA ---
     st.markdown(f"### 🏦 {nombre_cliente}")
     
     c1, c2 = st.columns(2)
     c1.metric("CAPITAL PENDIENTE", f"{cap_pend}")
-    c2.metric("INTERÉS ACUMULADO", f"${total_interes_generado:,.2f}".replace
+    c2.metric("INTERÉS ACUMULADO", f"${total_gen:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    
+    c3, c4 = st.columns(2)
+    c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    
+    # ESTATUS EN ROJO - Código limpio y seguro
+    with c4:
+        st.markdown(f"""
+            <div class="status-box">
+                <p style="color: #8b949e; font-size: 14px; margin: 0;">ESTATUS</p>
+                <p style="color: #ff4b4b; font-size: 26px; font-weight: bold; margin: 0;">EN RIESGO</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.write("📊 **Detalle de Movimientos**")
+    
+    columnas = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a
