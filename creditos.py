@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS: Títulos amarillos y valores verde neón
+# CSS: Títulos amarillos, montos verde neón y barra de progreso
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -30,11 +30,15 @@ def clean_num(value):
         return float(res)
     except: return 0.0
 
-# --- MAPEO DE CLIENTES POR GID ---
-# Aquí vinculamos el 'id' del link con el número de pestaña real
+# --- MAPEO DE CLIENTES (Actualizado con tus 6 clientes) ---
+# Aquí vinculamos el ID del link con el GID real de cada pestaña del Excel
 clientes = {
-    "cliente1": "77813725",  # GID de la primera pestaña
-    "cliente2": "1520750286" # GID de la pestaña 'IEP' que vi en tu captura
+    "cliente1": "77813725",
+    "cliente2": "1520750286", # Pestaña IEP
+    "cliente3": "647573177",  # GID extraído de tu captura
+    "cliente4": "1298150495", # GID extraído de tu captura
+    "cliente5": "1738221516", # GID extraído de tu captura
+    "cliente6": "650082110"   # GID extraído de tu captura
 }
 
 cliente_id = st.query_params.get("id")
@@ -46,17 +50,18 @@ if cliente_id in clientes:
         
         # Lectura de datos
         df_raw = pd.read_csv(url, header=None, nrows=1)
-        nombre_cliente = df_raw.iloc[0, 2] # C1
-        estatus_excel = df_raw.iloc[0, 4]  # E1
+        nombre_cliente = df_raw.iloc[0, 2] # Celda C1
+        estatus_excel = df_raw.iloc[0, 4]  # Celda E1
         
         df = pd.read_csv(url, skiprows=2)
         df.columns = df.columns.str.strip()
         df_limpio = df.dropna(subset=['Fecha']).copy()
 
-        # Cálculos
+        # Cálculos de Capital e Interés
         total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
         total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
         int_pendiente = total_gen - total_pagado_int
+        
         cap_inicial = clean_num(df_limpio.iloc[0]['Saldo Capital Pendiente'])
         cap_actual = clean_num(df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente'])
         total_abonado_cap = df_limpio['Abono a Capital'].apply(clean_num).sum()
@@ -66,6 +71,7 @@ if cliente_id in clientes:
         st.markdown(f"### 🏦 {nombre_cliente}")
         st.write(f"📊 **Progreso de Pago: {int(porcentaje * 100)}%**")
         st.progress(porcentaje)
+        st.markdown("<br>", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         c1.metric("CAPITAL PENDIENTE", f"${cap_actual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
@@ -75,6 +81,7 @@ if cliente_id in clientes:
         c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         
         with c4:
+            # Color dinámico basado en la celda E1 del Excel
             color_st = "#ff4b4b" if str(estatus_excel).strip().upper() == "EN RIESGO" else "#00ffcc"
             st.markdown(f"""
                 <div style="background-color: #111111; border: 1px solid {color_st}; border-radius: 12px; padding: 10px; text-align: center;">
@@ -89,11 +96,12 @@ if cliente_id in clientes:
         st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
 
     except Exception:
-        st.error("Error al leer los datos. Asegúrese de que el Excel sea público.")
+        st.error("Error al conectar con la base de datos. Verifique los permisos del Excel.")
 else:
-    st.info("👋 Bienvenido. Use su enlace personal para consultar su estado.")
+    # Pantalla inicial si el link no tiene ID
+    st.info("👋 Bienvenido. Por favor use su enlace personal para consultar su estado de cuenta.")
 
-        
+   
     
    
   
