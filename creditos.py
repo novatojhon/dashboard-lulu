@@ -30,34 +30,35 @@ def clean_num(value):
         return float(res)
     except: return 0.0
 
-# --- MAPEO DE CLIENTES (Actualizado con tus 6 clientes) ---
-# Aquí vinculamos el ID del link con el GID real de cada pestaña del Excel
+# --- MAPEO DE GIDs ACTUALIZADO (SEGÚN TUS CAPTURAS) ---
 clientes = {
     "cliente1": "77813725",
-    "cliente2": "1520750286", # Pestaña IEP
-    "cliente3": "647573177",  # GID extraído de tu captura
-    "cliente4": "1298150495", # GID extraído de tu captura
-    "cliente5": "1738221516", # GID extraído de tu captura
-    "cliente6": "650082110"   # GID extraído de tu captura
+    "cliente2": "1520750286",
+    "cliente3": "647573177",
+    "cliente4": "1298150495",
+    "cliente5": "1738221516",
+    "cliente6": "650082110"
 }
 
+# Obtener ID de la URL
 cliente_id = st.query_params.get("id")
 
 if cliente_id in clientes:
     try:
         gid = clientes[cliente_id]
+        # URL de exportación directa a CSV para evitar problemas de permisos
         url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
         
         # Lectura de datos
         df_raw = pd.read_csv(url, header=None, nrows=1)
-        nombre_cliente = df_raw.iloc[0, 2] # Celda C1
-        estatus_excel = df_raw.iloc[0, 4]  # Celda E1
+        nombre_cliente = df_raw.iloc[0, 2] # C1
+        estatus_excel = df_raw.iloc[0, 4]  # E1
         
         df = pd.read_csv(url, skiprows=2)
         df.columns = df.columns.str.strip()
         df_limpio = df.dropna(subset=['Fecha']).copy()
 
-        # Cálculos de Capital e Interés
+        # Cálculos Financieros
         total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
         total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
         int_pendiente = total_gen - total_pagado_int
@@ -81,7 +82,7 @@ if cliente_id in clientes:
         c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         
         with c4:
-            # Color dinámico basado en la celda E1 del Excel
+            # Color dinámico basado en el Excel
             color_st = "#ff4b4b" if str(estatus_excel).strip().upper() == "EN RIESGO" else "#00ffcc"
             st.markdown(f"""
                 <div style="background-color: #111111; border: 1px solid {color_st}; border-radius: 12px; padding: 10px; text-align: center;">
@@ -95,13 +96,7 @@ if cliente_id in clientes:
         cols = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
         st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
 
-    except Exception:
-        st.error("Error al conectar con la base de datos. Verifique los permisos del Excel.")
+    except Exception as e:
+        st.error(f"Error técnico al conectar con la pestaña {cliente_id}. Asegúrate de que los datos inicien en la fila 3.")
 else:
-    # Pantalla inicial si el link no tiene ID
     st.info("👋 Bienvenido. Por favor use su enlace personal para consultar su estado de cuenta.")
-
-   
-    
-   
-  
