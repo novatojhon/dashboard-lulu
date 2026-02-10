@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS Blindado: Sin errores de sintaxis
+# CSS: Títulos amarillos, valores verde neón, barra verde
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -20,65 +20,74 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# URL de la base de datos
+# URL base del Excel
 SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
-url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=77813725"
 
 def clean_num(value):
-    if pd.isna(value) or value == "" or value == 0:
-        return 0.0
+    if pd.isna(value) or value == "" or value == 0: return 0.0
     try:
         res = str(value).replace('$', '').replace('.', '').replace(',', '.').strip()
         return float(res)
-    except:
-        return 0.0
+    except: return 0.0
 
-try:
-    # Carga de datos
-    df_raw = pd.read_csv(url, header=None, nrows=1)
-    nombre_cliente = df_raw.iloc[0, 2]
-    df = pd.read_csv(url, skiprows=2)
-    df.columns = df.columns.str.strip()
-    df_limpio = df.dropna(subset=['Fecha']).copy()
+# --- LÓGICA DE PRIVACIDAD POR URL ---
+# Captura el ID del link (ejemplo: ?id=IEP)
+query_params = st.query_params
+cliente_id = query_params.get("id", None)
 
-    # --- LÓGICA DE CÁLCULOS ---
-    total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
-    total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
-    int_pendiente = total_gen - total_pagado_int
-    
-    cap_inicial = clean_num(df_limpio.iloc[0]['Saldo Capital Pendiente'])
-    cap_actual = clean_num(df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente'])
-    
-    total_abonado_cap = df_limpio['Abono a Capital'].apply(clean_num).sum()
-    porcentaje = min(total_abonado_cap / cap_inicial, 1.0) if cap_inicial > 0 else 0.0
+if cliente_id:
+    try:
+        # Construye la URL para la pestaña específica usando el ID
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={cliente_id}"
+        
+        # Leer datos
+        df_raw = pd.read_csv(url, header=None, nrows=1)
+        nombre_cliente = df_raw.iloc[0, 2] # Celda C1
+        estatus_excel = df_raw.iloc[0, 4] # Celda E1
+        
+        df = pd.read_csv(url, skiprows=2)
+        df.columns = df.columns.str.strip()
+        df_limpio = df.dropna(subset=['Fecha']).copy()
 
-    # --- INTERFAZ VISUAL ---
-    st.markdown(f"### 🏦 {nombre_cliente}")
-    
-    st.write(f"📊 **Progreso de Pago: {int(porcentaje * 100)}%**")
-    st.progress(porcentaje)
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    c1, c2 = st.columns(2)
-    c1.metric("CAPITAL PENDIENTE", f"${cap_actual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    c2.metric("INTERÉS ACUMULADO", f"${total_gen:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    
-    c3, c4 = st.columns(2)
-    c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    
-    with c4:
-        st.markdown(f"""
-            <div style="background-color: #111111; border: 1px solid #ff4b4b; border-radius: 12px; padding: 10px; text-align: center;">
-                <p style="color: #ffff00; font-size: 14px; font-weight: bold; margin: 0;">ESTATUS</p>
-                <p style="color: #ff4b4b; font-size: 26px; font-weight: bold; margin: 0;">EN RIESGO</p>
-            </div>
-        """, unsafe_allow_html=True)
+        # Cálculos Financieros
+        total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
+        total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
+        int_pendiente = total_gen - total_pagado_int
+        
+        cap_inicial = clean_num(df_limpio.iloc[0]['Saldo Capital Pendiente'])
+        cap_actual = clean_num(df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente'])
+        total_abonado_cap = df_limpio['Abono a Capital'].apply(clean_num).sum()
+        porcentaje = min(total_abonado_cap / cap_inicial, 1.0) if cap_inicial > 0 else 0.0
 
-    st.markdown("---")
-    st.write("📊 **Detalle de Movimientos**")
-    
-    columnas = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
-    st.dataframe(df_limpio[columnas].fillna("-"), use_container_width=True, hide_index=True)
+        # --- INTERFAZ ---
+        st.markdown(f"### 🏦 {nombre_cliente}")
+        st.write(f"📊 **Progreso de Pago: {int(porcentaje * 100)}%**")
+        st.progress(porcentaje)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        c1.metric("CAPITAL PENDIENTE", f"${cap_actual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        c2.metric("INTERÉS ACUMULADO", f"${total_gen:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        
+        c3, c4 = st.columns(2)
+        c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        
+        with c4:
+            # Color dinámico basado en el Excel (E1)
+            color_borde = "#ff4b4b" if estatus_excel == "EN RIESGO" else "#00ffcc"
+            st.markdown(f"""
+                <div style="background-color: #111111; border: 1px solid {color_borde}; border-radius: 12px; padding: 10px; text-align: center;">
+                    <p style="color: #ffff00; font-size: 14px; font-weight: bold; margin: 0;">ESTATUS</p>
+                    <p style="color: {color_borde}; font-size: 26px; font-weight: bold; margin: 0;">{estatus_excel}</p>
+                </div>
+            """, unsafe_allow_html=True)
 
-except Exception as e:
-    st.error("Error de sincronización. Por favor, revisa el formato del Excel.")
+        st.markdown("---")
+        st.write("📊 **Detalle de Movimientos**")
+        columnas = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
+        st.dataframe(df_limpio[columnas].fillna("-"), use_container_width=True, hide_index=True)
+
+    except Exception:
+        st.error("Acceso denegado. El enlace es incorrecto o la pestaña no existe.")
+else:
+    st.warning("⚠️ Por favor, ingrese a través de su enlace personal de cliente.")
