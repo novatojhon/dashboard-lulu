@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS para estilo visual
+# CSS para estilo visual (Títulos amarillos y valores neón)
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -30,15 +30,14 @@ def clean_num(value):
         return float(res)
     except: return 0.0
 
-# --- MAPEO DE GIDs CORREGIDO SEGÚN TUS CAPTURAS ---
-# Cliente 4: VH2025, Cliente 3: FL2025, Cliente 6: MGZ2025
+# --- MAPEO DE GIDs EXTRAÍDOS DE TUS CAPTURAS ---
 clientes = {
     "cliente1": "77813725",
-    "cliente2": "1520750286",
-    "cliente3": "1167219686",
-    "cliente4": "136743788",
-    "cliente5": "1738221516",
-    "cliente6": "650082110"
+    "cliente2": "1520750286", # IEP
+    "cliente3": "1167219686", # FL2025
+    "cliente4": "136743788",  # VH2025 (Corregido)
+    "cliente5": "1738221516", # Cliente5 (Corregido)
+    "cliente6": "650082110"   # MGZ2025
 }
 
 cliente_id = st.query_params.get("id")
@@ -61,7 +60,6 @@ if cliente_id in clientes:
         total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
         total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
         int_pendiente = total_gen - total_pagado_int
-        
         cap_inicial = clean_num(df_limpio.iloc[0]['Saldo Capital Pendiente'])
         cap_actual = clean_num(df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente'])
         total_abonado_cap = df_limpio['Abono a Capital'].apply(clean_num).sum()
@@ -71,7 +69,6 @@ if cliente_id in clientes:
         st.markdown(f"### 🏦 {nombre_cliente}")
         st.write(f"📊 **Progreso de Pago: {int(porcentaje * 100)}%**")
         st.progress(porcentaje)
-        st.markdown("<br>", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         c1.metric("CAPITAL PENDIENTE", f"${cap_actual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
@@ -82,16 +79,11 @@ if cliente_id in clientes:
         
         with c4:
             estatus_str = str(estatus_excel).strip().upper()
-            # Colores dinámicos para VH2025 (Mora Crítica) y otros
-            if estatus_str in ["MORA CRÍTICA", "EN RIESGO"]:
-                color_st = "#ff4b4b" # Rojo/Naranja
-            else:
-                color_st = "#00ffcc" # Verde Neón
-                
+            color_st = "#ff4b4b" if estatus_str in ["EN RIESGO", "MORA CRÍTICA"] else "#00ffcc"
             st.markdown(f"""
                 <div style="background-color: #111111; border: 1px solid {color_st}; border-radius: 12px; padding: 10px; text-align: center;">
                     <p style="color: #ffff00; font-size: 14px; font-weight: bold; margin: 0;">ESTATUS</p>
-                    <p style="color: {color_st}; font-size: 20px; font-weight: bold; margin: 0;">{estatus_excel}</p>
+                    <p style="color: {color_st}; font-size: 22px; font-weight: bold; margin: 0;">{estatus_excel}</p>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -99,3 +91,8 @@ if cliente_id in clientes:
         st.write("📊 **Detalle de Movimientos**")
         cols = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
         st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
+
+    except Exception as e:
+        st.error(f"Error al cargar datos del cliente {cliente_id}. Verifique el formato.")
+else:
+    st.info("👋 Bienvenido. Use su enlace personal para consultar su estado.")
