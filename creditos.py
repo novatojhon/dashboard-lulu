@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS: Títulos amarillos, valores verde neón, barra verde
+# CSS: Títulos amarillos, montos verde neón y barra de progreso
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -20,7 +20,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# URL base del Excel
+# ID de tu Google Sheets
 SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
 
 def clean_num(value):
@@ -30,26 +30,27 @@ def clean_num(value):
         return float(res)
     except: return 0.0
 
-# --- LÓGICA DE PRIVACIDAD POR URL ---
-# Captura el ID del link (ejemplo: ?id=IEP)
+# --- LÓGICA DE PRIVACIDAD ---
+# Captura el ID del cliente desde la URL (ejemplo: ?id=IEP)
 query_params = st.query_params
 cliente_id = query_params.get("id", None)
 
 if cliente_id:
     try:
-        # Construye la URL para la pestaña específica usando el ID
+        # Cargamos la pestaña específica basada en el ID
         url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={cliente_id}"
         
-        # Leer datos
+        # Datos de cabecera
         df_raw = pd.read_csv(url, header=None, nrows=1)
-        nombre_cliente = df_raw.iloc[0, 2] # Celda C1
-        estatus_excel = df_raw.iloc[0, 4] # Celda E1
+        nombre_cliente = df_raw.iloc[0, 2]  # Celda C1
+        estatus_excel = df_raw.iloc[0, 4]   # Celda E1
         
+        # Datos de la tabla
         df = pd.read_csv(url, skiprows=2)
         df.columns = df.columns.str.strip()
         df_limpio = df.dropna(subset=['Fecha']).copy()
 
-        # Cálculos Financieros
+        # Cálculos exactos
         total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
         total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
         int_pendiente = total_gen - total_pagado_int
@@ -73,21 +74,8 @@ if cliente_id:
         c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         
         with c4:
-            # Color dinámico basado en el Excel (E1)
-            color_borde = "#ff4b4b" if estatus_excel == "EN RIESGO" else "#00ffcc"
+            # Color dinámico según la celda E1
+            es_riesgo = str(estatus_excel).strip().upper() == "EN RIESGO"
+            color_st = "#ff4b4b" if es_riesgo else "#00ffcc"
             st.markdown(f"""
-                <div style="background-color: #111111; border: 1px solid {color_borde}; border-radius: 12px; padding: 10px; text-align: center;">
-                    <p style="color: #ffff00; font-size: 14px; font-weight: bold; margin: 0;">ESTATUS</p>
-                    <p style="color: {color_borde}; font-size: 26px; font-weight: bold; margin: 0;">{estatus_excel}</p>
-                </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.write("📊 **Detalle de Movimientos**")
-        columnas = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
-        st.dataframe(df_limpio[columnas].fillna("-"), use_container_width=True, hide_index=True)
-
-    except Exception:
-        st.error("Acceso denegado. El enlace es incorrecto o la pestaña no existe.")
-else:
-    st.warning("⚠️ Por favor, ingrese a través de su enlace personal de cliente.")
+                <div style="background-color: #111111; border: 1px solid {color_st}; border-radius: 12px; padding: 10px; text-align: center;">
