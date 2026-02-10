@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS: Títulos amarillos y montos verde neón (Sin cambios)
+# CSS: Estilos visuales (Sin cambios para no dañar nada)
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -30,13 +30,13 @@ def clean_num(value):
         return float(res)
     except: return 0.0
 
-# --- MAPEO DE GIDs (Actualizado para el Cliente 5) ---
+# --- MAPEO DE GIDs: Solo se actualizó el Cliente 5 con el ID de tu captura ---
 clientes = {
     "cliente1": "77813725",
     "cliente2": "1520750286",
     "cliente3": "1167219686",
     "cliente4": "136743788",
-    "cliente5": "1738221516", # GID verificado para tu pestaña Cliente 5
+    "cliente5": "1676343907", # <--- NUEVO GID DE TU CAPTURA (GZ2025)
     "cliente6": "650082110"
 }
 
@@ -49,8 +49,8 @@ if cliente_id in clientes:
         
         # Lectura de datos
         df_raw = pd.read_csv(url, header=None, nrows=1)
-        nombre_cliente = df_raw.iloc[0, 2] # C1
-        estatus_excel = df_raw.iloc[0, 4]  # E1
+        nombre_cliente = df_raw.iloc[0, 2] # Celda C1
+        estatus_excel = df_raw.iloc[0, 4]  # Celda E1
         
         df = pd.read_csv(url, skiprows=2)
         df.columns = df.columns.str.strip()
@@ -60,6 +60,7 @@ if cliente_id in clientes:
         total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
         total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
         int_pendiente = total_gen - total_pagado_int
+        
         cap_inicial = clean_num(df_limpio.iloc[0]['Saldo Capital Pendiente'])
         cap_actual = clean_num(df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente'])
         total_abonado_cap = df_limpio['Abono a Capital'].apply(clean_num).sum()
@@ -69,6 +70,7 @@ if cliente_id in clientes:
         st.markdown(f"### 🏦 {nombre_cliente}")
         st.write(f"📊 **Progreso de Pago: {int(porcentaje * 100)}%**")
         st.progress(porcentaje)
+        st.markdown("<br>", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         c1.metric("CAPITAL PENDIENTE", f"${cap_actual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
@@ -93,8 +95,6 @@ if cliente_id in clientes:
         st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
 
     except Exception:
-        st.error(f"Error al cargar datos del cliente {cliente_id}. Verifica el formato en Excel.")
+        st.error(f"Error al cargar datos del cliente. Verifique la pestaña en Excel.")
 else:
     st.info("👋 Bienvenido. Use su enlace personal para consultar su estado.")
-
-     
