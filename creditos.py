@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS: Títulos amarillos, montos verde neón
+# CSS: Títulos amarillos y valores verde neón
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -20,7 +20,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# ID de tu Google Sheets (Asegúrate que el Excel siga compartido como 'Cualquier persona con el enlace puede leer')
+# ID de tu Google Sheets
 SHEET_ID = "1PMwIDdoXm1U02g-nTtkoq14wihv7ORpHEsla0FbgSJ8"
 
 def clean_num(value):
@@ -31,38 +31,35 @@ def clean_num(value):
     except: return 0.0
 
 # --- LÓGICA DE CLIENTES ---
-# Obtenemos el nombre de la pestaña desde el link
+# Captura el ID desde el link (ejemplo: ?id=cliente1)
 cliente_id = st.query_params.get("id")
 
 if cliente_id:
     try:
-        # Construcción de URL para leer la pestaña específica
         url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={cliente_id}"
         
-        # Leemos los datos (C1=Nombre, E1=Estatus)
+        # Lectura de datos
         df_raw = pd.read_csv(url, header=None, nrows=1)
-        nombre_cliente = df_raw.iloc[0, 2] 
-        estatus_excel = df_raw.iloc[0, 4]  
+        nombre_cliente = df_raw.iloc[0, 2] # C1
+        estatus_excel = df_raw.iloc[0, 4]  # E1
         
         df = pd.read_csv(url, skiprows=2)
         df.columns = df.columns.str.strip()
         df_limpio = df.dropna(subset=['Fecha']).copy()
 
-        # Cálculos de Interés y Capital
+        # Cálculos
         total_gen = df_limpio['Interés Generado (20%)'].apply(clean_num).sum()
         total_pagado_int = df_limpio['Abono a Interés'].apply(clean_num).sum()
         int_pendiente = total_gen - total_pagado_int
-        
         cap_inicial = clean_num(df_limpio.iloc[0]['Saldo Capital Pendiente'])
         cap_actual = clean_num(df_limpio[df_limpio['Saldo Capital Pendiente'].notna()].iloc[-1]['Saldo Capital Pendiente'])
         total_abonado_cap = df_limpio['Abono a Capital'].apply(clean_num).sum()
         porcentaje = min(total_abonado_cap / cap_inicial, 1.0) if cap_inicial > 0 else 0.0
 
-        # --- MOSTRAR DATOS ---
+        # --- INTERFAZ ---
         st.markdown(f"### 🏦 {nombre_cliente}")
         st.write(f"📊 **Progreso de Pago: {int(porcentaje * 100)}%**")
         st.progress(porcentaje)
-        st.markdown("<br>", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         c1.metric("CAPITAL PENDIENTE", f"${cap_actual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
@@ -72,7 +69,6 @@ if cliente_id:
         c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         
         with c4:
-            # Color dinámico basado en E1 del Excel
             color_st = "#ff4b4b" if str(estatus_excel).strip().upper() == "EN RIESGO" else "#00ffcc"
             st.markdown(f"""
                 <div style="background-color: #111111; border: 1px solid {color_st}; border-radius: 12px; padding: 10px; text-align: center;">
@@ -83,11 +79,13 @@ if cliente_id:
 
         st.markdown("---")
         st.write("📊 **Detalle de Movimientos**")
-        columnas = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
-        st.dataframe(df_limpio[columnas].fillna("-"), use_container_width=True, hide_index=True)
+        cols = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
+        st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
 
-    except Exception as e:
-        st.error(f"No se pudo cargar la información de '{cliente_id}'. Verifique el nombre de la pestaña en Excel.")
+    except Exception:
+        st.error("Cuenta no encontrada. Verifique el enlace.")
 else:
-    # Pantalla de bienvenida si no hay ID en el link
-    st.info("👋 Bienvenida/o. Por favor, utilice su enlace personalizado para ver su estado de cuenta.")
+    st.info("👋 Bienvenido. Use su enlace personal para consultar su estado.")
+
+   
+  
