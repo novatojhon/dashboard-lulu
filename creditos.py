@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS: Títulos amarillos y montos verde neón
+# CSS para estilo visual
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -31,13 +31,14 @@ def clean_num(value):
     except: return 0.0
 
 # --- MAPEO DE GIDs CORREGIDO SEGÚN TUS CAPTURAS ---
+# Cliente 4: VH2025, Cliente 3: FL2025, Cliente 6: MGZ2025
 clientes = {
     "cliente1": "77813725",
     "cliente2": "1520750286",
-    "cliente3": "1167219686", # FL2025
-    "cliente4": "136743788",  # CORREGIDO (VH2025)
-    "cliente5": "1738221516", # CORREGIDO (Cliente5)
-    "cliente6": "650082110"   # MGZ2025
+    "cliente3": "1167219686",
+    "cliente4": "136743788",
+    "cliente5": "1738221516",
+    "cliente6": "650082110"
 }
 
 cliente_id = st.query_params.get("id")
@@ -75,5 +76,26 @@ if cliente_id in clientes:
         c1, c2 = st.columns(2)
         c1.metric("CAPITAL PENDIENTE", f"${cap_actual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         c2.metric("INTERÉS ACUMULADO", f"${total_gen:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-      
-    
+        
+        c3, c4 = st.columns(2)
+        c3.metric("INTERÉS PENDIENTE", f"${int_pendiente:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        
+        with c4:
+            estatus_str = str(estatus_excel).strip().upper()
+            # Colores dinámicos para VH2025 (Mora Crítica) y otros
+            if estatus_str in ["MORA CRÍTICA", "EN RIESGO"]:
+                color_st = "#ff4b4b" # Rojo/Naranja
+            else:
+                color_st = "#00ffcc" # Verde Neón
+                
+            st.markdown(f"""
+                <div style="background-color: #111111; border: 1px solid {color_st}; border-radius: 12px; padding: 10px; text-align: center;">
+                    <p style="color: #ffff00; font-size: 14px; font-weight: bold; margin: 0;">ESTATUS</p>
+                    <p style="color: {color_st}; font-size: 20px; font-weight: bold; margin: 0;">{estatus_excel}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.write("📊 **Detalle de Movimientos**")
+        cols = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
+        st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
