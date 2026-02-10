@@ -30,13 +30,19 @@ def clean_num(value):
         return float(res)
     except: return 0.0
 
-# --- LÓGICA DE CLIENTES ---
-# Captura el ID desde el link (ejemplo: ?id=cliente1)
+# --- MAPEO DE CLIENTES POR GID ---
+# Aquí vinculamos el 'id' del link con el número de pestaña real
+clientes = {
+    "cliente1": "77813725",  # GID de la primera pestaña
+    "cliente2": "1520750286" # GID de la pestaña 'IEP' que vi en tu captura
+}
+
 cliente_id = st.query_params.get("id")
 
-if cliente_id:
+if cliente_id in clientes:
     try:
-        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={cliente_id}"
+        gid = clientes[cliente_id]
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
         
         # Lectura de datos
         df_raw = pd.read_csv(url, header=None, nrows=1)
@@ -83,9 +89,11 @@ if cliente_id:
         st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
 
     except Exception:
-        st.error("Cuenta no encontrada. Verifique el enlace.")
+        st.error("Error al leer los datos. Asegúrese de que el Excel sea público.")
 else:
     st.info("👋 Bienvenido. Use su enlace personal para consultar su estado.")
 
+        
+    
    
   
