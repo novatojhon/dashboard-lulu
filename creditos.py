@@ -4,7 +4,7 @@ import pandas as pd
 # 1. Configuración de la App
 st.set_page_config(page_title="Estado de Cuenta OWS", layout="centered")
 
-# CSS para estilo visual (Títulos amarillos y valores neón)
+# CSS: Títulos amarillos y montos verde neón (Sin cambios)
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
@@ -30,14 +30,14 @@ def clean_num(value):
         return float(res)
     except: return 0.0
 
-# --- MAPEO DE GIDs EXTRAÍDOS DE TUS CAPTURAS ---
+# --- MAPEO DE GIDs (Actualizado para el Cliente 5) ---
 clientes = {
     "cliente1": "77813725",
-    "cliente2": "1520750286", # IEP
-    "cliente3": "1167219686", # FL2025
-    "cliente4": "136743788",  # VH2025 (Corregido)
-    "cliente5": "1738221516", # Cliente5 (Corregido)
-    "cliente6": "650082110"   # MGZ2025
+    "cliente2": "1520750286",
+    "cliente3": "1167219686",
+    "cliente4": "136743788",
+    "cliente5": "1738221516", # GID verificado para tu pestaña Cliente 5
+    "cliente6": "650082110"
 }
 
 cliente_id = st.query_params.get("id")
@@ -83,7 +83,7 @@ if cliente_id in clientes:
             st.markdown(f"""
                 <div style="background-color: #111111; border: 1px solid {color_st}; border-radius: 12px; padding: 10px; text-align: center;">
                     <p style="color: #ffff00; font-size: 14px; font-weight: bold; margin: 0;">ESTATUS</p>
-                    <p style="color: {color_st}; font-size: 22px; font-weight: bold; margin: 0;">{estatus_excel}</p>
+                    <p style="color: {color_st}; font-size: 20px; font-weight: bold; margin: 0;">{estatus_excel}</p>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -92,7 +92,9 @@ if cliente_id in clientes:
         cols = ['Fecha', 'Descripción', 'Interés Generado (20%)', 'Abono a Interés', 'Abono a Capital', 'Saldo Capital Pendiente']
         st.dataframe(df_limpio[cols].fillna("-"), use_container_width=True, hide_index=True)
 
-    except Exception as e:
-        st.error(f"Error al cargar datos del cliente {cliente_id}. Verifique el formato.")
+    except Exception:
+        st.error(f"Error al cargar datos del cliente {cliente_id}. Verifica el formato en Excel.")
 else:
     st.info("👋 Bienvenido. Use su enlace personal para consultar su estado.")
+
+     
