@@ -38,7 +38,11 @@ clientes = {
     "cliente4": "136743788",
     "cliente5": "1676343907", # <--- NUEVO GID DE TU CAPTURA (GZ2025)
     "cliente6": "650082110",
-    "cliente7": "1029433485"
+    "cliente7": "1029433485",
+    "cliente8": "1238367874",
+    "cliente9": "2088150717",
+    "cliente10": "603819501",
+    "cliente11": "1048728497"
 }
 
 cliente_id = st.query_params.get("id")
