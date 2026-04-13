@@ -42,7 +42,8 @@ clientes = {
     "cliente8": "1238367874",
     "cliente9": "2088150717",
     "cliente10": "603819501",
-    "cliente11": "1048728497"
+    "cliente11": "1048728497",
+    "cliente12": "1868992774"
 }
 
 cliente_id = st.query_params.get("id")
